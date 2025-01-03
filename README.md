@@ -1,7 +1,6 @@
 # pomodoro-timer
 
 ## todo:
-- adding sound effect for start and end.
 - debugging and fixing the session duplicate problem
 - making it public with github pages
 

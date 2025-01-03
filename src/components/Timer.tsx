@@ -54,6 +54,9 @@ export default function Timer({
     if (state.isRunning) {
       interval = setInterval(() => {
         setState(prev => {
+          if (prev.minutes === 0 && prev.seconds === 4 && !sessionCompleted) {
+            endSound.play();
+          }
           if (prev.minutes === 0 && prev.seconds === 0 && !sessionCompleted) {
             sessionCompleted = true;
             endSound.play();
