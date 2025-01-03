@@ -54,12 +54,11 @@ export default function Timer({
     if (state.isRunning) {
       interval = setInterval(() => {
         setState(prev => {
-          if (prev.minutes === 0 && prev.seconds === 4 && !sessionCompleted) {
+          if (prev.minutes === 0 && prev.seconds === 6 && !sessionCompleted) {
             endSound.play();
           }
           if (prev.minutes === 0 && prev.seconds === 0 && !sessionCompleted) {
             sessionCompleted = true;
-            endSound.play();
             const duration = prev.type === 'work' ? workDuration : breakDuration;
             onSessionComplete(duration, prev.type);
             const nextType = prev.type === 'work' ? 'break' : 'work';
