@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet'; // Import Helmet
 import Timer from './components/Timer';
 import History from './components/History';
 import SessionForm from './components/SessionForm';
@@ -64,16 +65,24 @@ function App() {
       className={`min-h-screen flex flex-col items-center justify-center p-8 space-y-12 transition-colors duration-1000 ${getBackgroundClass()}`}
       style={getStyles()}
     >
+      {/* Add Helmet for metadata */}
+      <Helmet>
+        <meta charSet="utf-8" />
+        <title>Pomodoro Timer</title>
+        <meta name="description" content="A productivity app to manage work and break sessions using the Pomodoro Technique." />
+        <link rel="icon" type="image/png" href="/timer.png" />
+      </Helmet>
+
       <div className="flex flex-col items-center space-y-6">
-        <SessionForm 
-          description={currentDescription}
-          onDescriptionChange={setCurrentDescription}
-        />
         <Timer 
           onSessionComplete={handleSessionComplete} 
           onGradientChange={setCurrentGradient}
           workDuration={workDuration}
           breakDuration={breakDuration}
+        />
+        <SessionForm 
+          description={currentDescription}
+          onDescriptionChange={setCurrentDescription}
         />
       </div>
       <History 

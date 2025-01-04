@@ -122,8 +122,10 @@ export default function Timer({
           
           // Play end sound when 10 seconds remain
           if (totalSeconds === 10 && !sessionCompleted) {
-            if (endSoundRef.current) {
+            if (prev.type === 'work' && endSoundRef.current) {
               endSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+            } else if (prev.type === 'break' && pauseEndSoundRef.current) {
+              pauseEndSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
             }
           }
 
@@ -173,6 +175,11 @@ export default function Timer({
 
   return (
     <div className="flex flex-col items-center space-y-8">
+      {/* Icon for Work/Break Mode */}
+      <div className="text-6xl mb-4">
+        {state.type === 'work' ? <Dumbbell size={64} /> : <Coffee size={64} />}
+      </div>
+
       <div className={`text-8xl font-bold tracking-widest transition-transform duration-500 ${timerScale}`}>
         {String(state.minutes).padStart(2, '0')}:
         {String(state.seconds).padStart(2, '0')}
