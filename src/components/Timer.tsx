@@ -2,11 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react';
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
-import tick from '/sounds/tick.mp3'
-import end from '/sounds/end.mp3'
 
-const tickSound = new Audio(tick);
-const endSound = new Audio(end);
+const tickSound = new Audio('/sounds/tick.mp3');
+const endSound = new Audio('/sounds/end.mp3');
 
 interface TimerProps {
   onSessionComplete: (duration: number, type: 'work' | 'break') => void;
