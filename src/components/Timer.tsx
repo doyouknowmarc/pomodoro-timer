@@ -11,24 +11,42 @@ export default function Timer({
 }: TimerProps) {
   const tickSoundRef = useRef<HTMLAudioElement | null>(null);
   const endSoundRef = useRef<HTMLAudioElement | null>(null);
+  const pauseStartSoundRef = useRef<HTMLAudioElement | null>(null);
+  const pauseEndSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    tickSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/tick.mp3`);
+    tickSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/start.mp3`);
     endSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/end.mp3`);
+    pauseStartSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/pausestart.mp3`);
+    pauseEndSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/pauseend.mp3`);
   }, []);
 
   const [state, setState] = useState<TimerState>({
     minutes: Math.floor(workDuration / 60),
     seconds: 0,
     isRunning: false,
-    type: 'work'
+    type: 'work',
+    isPaused: false
   });
 
   const toggleTimer = () => {
     if (!state.isRunning && tickSoundRef.current) {
       tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
     }
-    setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
+    if (state.isRunning && tickSoundRef.current) {
+      tickSoundRef.current.pause();
+    }
+    setState(prev => ({ ...prev, isRunning: !prev.isRunning, isPaused: false }));
+  };
+
+  const togglePause = () => {
+    if (!state.isPaused && pauseStartSoundRef.current) {
+      pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+    }
+    if (state.isPaused && pauseStartSoundRef.current) {
+      pauseStartSoundRef.current.pause();
+    }
+    setState(prev => ({ ...prev, isPaused: !prev.isPaused, isRunning: false }));
   };
 
   const resetTimer = (type: 'work' | 'break') => {
@@ -38,12 +56,14 @@ export default function Timer({
       seconds: 0,
       isRunning: false,
       type: type,
+      isPaused: false
     });
   };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     let sessionCompleted = false;
+    let pauseEndTimeout: NodeJS.Timeout;
 
     if (state.isRunning) {
       interval = setInterval(() => {
@@ -62,7 +82,8 @@ export default function Timer({
               minutes: Math.floor(nextDuration / 60),
               seconds: 0,
               isRunning: false,
-              type: nextType
+              type: nextType,
+              isPaused: false
             };
           }
 
@@ -80,11 +101,23 @@ export default function Timer({
       }, 1000);
     }
 
+    if (state.isPaused) {
+      const totalPauseTime = state.minutes * 60 + state.seconds;
+      if (totalPauseTime > 10) {
+        pauseEndTimeout = setTimeout(() => {
+          if (pauseEndSoundRef.current) {
+            pauseEndSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+          }
+        }, (totalPauseTime - 10) * 1000);
+      }
+    }
+
     return () => {
       clearInterval(interval);
+      clearTimeout(pauseEndTimeout);
       sessionCompleted = false;
     };
-  }, [state.isRunning, onSessionComplete, workDuration, breakDuration]);
+  }, [state.isRunning, state.isPaused, onSessionComplete, workDuration, breakDuration]);
 
   useEffect(() => {
     const timeString = `${String(state.minutes).padStart(2, '0')}:${String(state.seconds).padStart(2, '0')}`;
@@ -111,6 +144,14 @@ export default function Timer({
             {state.isRunning ? <Pause size={24} /> : <Play size={24} />}
           </button>
           
+          <button
+            onClick={togglePause}
+            className="bg-white/20 hover:bg-white/30 p-4 rounded-full transition-all"
+            title={state.isPaused ? "Resume timer" : "Pause timer"}
+          >
+            <Coffee size={24} />
+          </button>
+
           <button
             onClick={() => resetTimer(state.type)}
             className="bg-white/20 hover:bg-white/30 p-4 rounded-full transition-all"
