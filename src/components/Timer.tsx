@@ -3,8 +3,8 @@ import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react'
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
 
-const tickSound = new Audio('/sounds/tick.mp3');
-const endSound = new Audio('/sounds/end.mp3');
+const tickSound = new Audio('./sounds/tick.mp3');
+const endSound = new Audio('./sounds/end.mp3');
 
 interface TimerProps {
   onSessionComplete: (duration: number, type: 'work' | 'break') => void;
