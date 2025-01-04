@@ -124,7 +124,7 @@ export default function Timer({
     document.title = state.isRunning ? `${timeString} - ${state.type === 'work' ? 'Working' : 'Break'} - Pomodoro` : 'Pomodoro Timer';
   }, [state.minutes, state.seconds, state.isRunning, state.type]);
 
-  const timerScale = state.isRunning ? 'scale-125' : 'scale-100';
+  const timerScale = state.isRunning ? 'scale-100' : 'scale-100';
   const controlsScale = state.isRunning ? 'scale-90' : 'scale-100';
 
   return (
