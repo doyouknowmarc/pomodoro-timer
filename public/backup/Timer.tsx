@@ -1,7 +1,17 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react';
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
+
+const tickSound = new Audio(import.meta.env.BASE_URL + '/sounds/tick.mp3');
+const endSound = new Audio(import.meta.env.BASE_URL + '/sounds/end.mp3');
+
+interface TimerProps {
+  onSessionComplete: (duration: number, type: 'work' | 'break') => void;
+  onGradientChange: (gradient: string) => void;
+  workDuration: number;
+  breakDuration: number;
+}
 
 export default function Timer({ 
   onSessionComplete, 
@@ -9,14 +19,6 @@ export default function Timer({
   workDuration,
   breakDuration 
 }: TimerProps) {
-  const tickSoundRef = useRef<HTMLAudioElement | null>(null);
-  const endSoundRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    tickSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/tick.mp3`);
-    endSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/end.mp3`);
-  }, []);
-
   const [state, setState] = useState<TimerState>({
     minutes: Math.floor(workDuration / 60),
     seconds: 0,
@@ -24,22 +26,34 @@ export default function Timer({
     type: 'work'
   });
 
+
+
+  const resetTimer = useCallback((type: 'work' | 'break' = 'work') => {
+    const totalSeconds = type === 'work' ? workDuration : breakDuration;
+    setState({
+      minutes: Math.floor(totalSeconds / 60),
+      seconds: 0,
+      isRunning: false,
+      type
+    });
+  }, [workDuration, breakDuration]);
+
+  useEffect(() => {
+    resetTimer(state.type);
+  }, [workDuration, breakDuration, state.type, resetTimer]);
+
   const toggleTimer = () => {
-    if (!state.isRunning && tickSoundRef.current) {
-      tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+    if (!state.isRunning) {
+      tickSound.play();
     }
     setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
   };
 
-  const resetTimer = (type: 'work' | 'break') => {
-    const duration = type === 'work' ? workDuration : breakDuration;
-    setState({
-      minutes: Math.floor(duration / 60),
-      seconds: 0,
-      isRunning: false,
-      type: type,
-    });
-  };
+    // Update document title with timer
+    useEffect(() => {
+      const timeString = `${String(state.minutes).padStart(2, '0')}:${String(state.seconds).padStart(2, '0')}`;
+      document.title = state.isRunning ? `${timeString} - ${state.type === 'work' ? 'Working' : 'Break'} - Pomodoro` : 'Pomodoro Timer';
+    }, [state.minutes, state.seconds, state.isRunning, state.type]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -48,10 +62,9 @@ export default function Timer({
     if (state.isRunning) {
       interval = setInterval(() => {
         setState(prev => {
-          if (prev.minutes === 0 && prev.seconds === 6 && !sessionCompleted && endSoundRef.current) {
-            endSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+          if (prev.minutes === 0 && prev.seconds === 6 && !sessionCompleted) {
+            endSound.play();
           }
-
           if (prev.minutes === 0 && prev.seconds === 0 && !sessionCompleted) {
             sessionCompleted = true;
             const duration = prev.type === 'work' ? workDuration : breakDuration;
@@ -85,11 +98,6 @@ export default function Timer({
       sessionCompleted = false;
     };
   }, [state.isRunning, onSessionComplete, workDuration, breakDuration]);
-
-  useEffect(() => {
-    const timeString = `${String(state.minutes).padStart(2, '0')}:${String(state.seconds).padStart(2, '0')}`;
-    document.title = state.isRunning ? `${timeString} - ${state.type === 'work' ? 'Working' : 'Break'} - Pomodoro` : 'Pomodoro Timer';
-  }, [state.minutes, state.seconds, state.isRunning, state.type]);
 
   const timerScale = state.isRunning ? 'scale-125' : 'scale-100';
   const controlsScale = state.isRunning ? 'scale-90' : 'scale-100';
