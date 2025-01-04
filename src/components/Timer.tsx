@@ -2,9 +2,11 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react';
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
+import tick from '/sounds/tick.mp3'
+import end from '/sounds/end.mp3'
 
-const tickSound = new Audio('/tick.mp3');
-const endSound = new Audio('/end.mp3');
+const tickSound = new Audio(tick);
+const endSound = new Audio(end);
 
 interface TimerProps {
   onSessionComplete: (duration: number, type: 'work' | 'break') => void;
@@ -26,6 +28,8 @@ export default function Timer({
     type: 'work'
   });
 
+
+
   const resetTimer = useCallback((type: 'work' | 'break' = 'work') => {
     const totalSeconds = type === 'work' ? workDuration : breakDuration;
     setState({
@@ -46,6 +50,12 @@ export default function Timer({
     }
     setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
   };
+
+    // Update document title with timer
+    useEffect(() => {
+      const timeString = `${String(state.minutes).padStart(2, '0')}:${String(state.seconds).padStart(2, '0')}`;
+      document.title = state.isRunning ? `${timeString} - ${state.type === 'work' ? 'Working' : 'Break'} - Pomodoro` : 'Pomodoro Timer';
+    }, [state.minutes, state.seconds, state.isRunning, state.type]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
