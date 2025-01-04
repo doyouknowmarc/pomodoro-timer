@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Palette } from 'lucide-react';
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
 
@@ -26,7 +26,6 @@ export default function Timer({
     seconds: 0,
     isRunning: false,
     type: 'work',
-    isPaused: false
   });
 
   const toggleTimer = () => {
@@ -36,17 +35,7 @@ export default function Timer({
     if (state.isRunning && tickSoundRef.current) {
       tickSoundRef.current.pause();
     }
-    setState(prev => ({ ...prev, isRunning: !prev.isRunning, isPaused: false }));
-  };
-
-  const togglePause = () => {
-    if (!state.isPaused && pauseStartSoundRef.current) {
-      pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
-    }
-    if (state.isPaused && pauseStartSoundRef.current) {
-      pauseStartSoundRef.current.pause();
-    }
-    setState(prev => ({ ...prev, isPaused: !prev.isPaused, isRunning: false }));
+    setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
   };
 
   const resetTimer = (type: 'work' | 'break') => {
@@ -56,7 +45,6 @@ export default function Timer({
       seconds: 0,
       isRunning: false,
       type: type,
-      isPaused: false
     });
   };
 
@@ -78,12 +66,14 @@ export default function Timer({
             onSessionComplete(duration, prev.type);
             const nextType = prev.type === 'work' ? 'break' : 'work';
             const nextDuration = nextType === 'work' ? workDuration : breakDuration;
+            if (nextType === 'break' && pauseStartSoundRef.current) {
+              pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+            }
             return {
               minutes: Math.floor(nextDuration / 60),
               seconds: 0,
               isRunning: false,
               type: nextType,
-              isPaused: false
             };
           }
 
@@ -95,13 +85,13 @@ export default function Timer({
           return {
             ...prev,
             minutes: Math.floor(totalSeconds / 60),
-            seconds: totalSeconds % 60
+            seconds: totalSeconds % 60,
           };
         });
       }, 1000);
     }
 
-    if (state.isPaused) {
+    if (state.type === 'break') {
       const totalPauseTime = state.minutes * 60 + state.seconds;
       if (totalPauseTime > 10) {
         pauseEndTimeout = setTimeout(() => {
@@ -117,7 +107,7 @@ export default function Timer({
       clearTimeout(pauseEndTimeout);
       sessionCompleted = false;
     };
-  }, [state.isRunning, state.isPaused, onSessionComplete, workDuration, breakDuration]);
+  }, [state.isRunning, state.type, onSessionComplete, workDuration, breakDuration]);
 
   useEffect(() => {
     const timeString = `${String(state.minutes).padStart(2, '0')}:${String(state.seconds).padStart(2, '0')}`;
@@ -145,14 +135,6 @@ export default function Timer({
           </button>
           
           <button
-            onClick={togglePause}
-            className="bg-white/20 hover:bg-white/30 p-4 rounded-full transition-all"
-            title={state.isPaused ? "Resume timer" : "Pause timer"}
-          >
-            <Coffee size={24} />
-          </button>
-
-          <button
             onClick={() => resetTimer(state.type)}
             className="bg-white/20 hover:bg-white/30 p-4 rounded-full transition-all"
             title="Reset timer"
@@ -165,7 +147,7 @@ export default function Timer({
             className="bg-white/20 hover:bg-white/30 p-4 rounded-full transition-all"
             title={state.type === 'work' ? "Switch to break" : "Switch to work"}
           >
-            {state.type === 'work' ? <Coffee size={24} /> : <Dumbbell size={24} />}
+            <Coffee size={24} />
           </button>
 
           <button
