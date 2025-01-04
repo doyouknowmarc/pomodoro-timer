@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react';
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
@@ -13,12 +13,26 @@ export default function Timer({
   const endSoundRef = useRef<HTMLAudioElement | null>(null);
   const pauseStartSoundRef = useRef<HTMLAudioElement | null>(null);
   const pauseEndSoundRef = useRef<HTMLAudioElement | null>(null);
+  const hasPlayedStartSound = useRef<boolean>(false);
+  const isAudioFinished = useRef<boolean>(false); // Track if audio has finished playing
 
   useEffect(() => {
     tickSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/start.mp3`);
     endSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/end.mp3`);
     pauseStartSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/pausestart.mp3`);
     pauseEndSoundRef.current = new Audio(`${import.meta.env.BASE_URL}sounds/pauseend.mp3`);
+
+    // Add event listener to detect when audio finishes playing
+    if (tickSoundRef.current) {
+      tickSoundRef.current.addEventListener('ended', () => {
+        isAudioFinished.current = true;
+      });
+    }
+    if (pauseStartSoundRef.current) {
+      pauseStartSoundRef.current.addEventListener('ended', () => {
+        isAudioFinished.current = true;
+      });
+    }
   }, []);
 
   const [state, setState] = useState<TimerState>({
@@ -29,26 +43,56 @@ export default function Timer({
     isPaused: false
   });
 
+  // Update timer when duration changes
+  useEffect(() => {
+    if (!state.isRunning && !state.isPaused) {
+      const duration = state.type === 'work' ? workDuration : breakDuration;
+      setState(prev => ({
+        ...prev,
+        minutes: Math.floor(duration / 60),
+        seconds: 0
+      }));
+    }
+  }, [workDuration, breakDuration, state.type, state.isRunning, state.isPaused]);
+
   const toggleTimer = () => {
-    if (!state.isRunning) {
-      if (state.type === 'work' && tickSoundRef.current) {
-        tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
-      } else if (state.type === 'break' && pauseStartSoundRef.current) {
-        pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
-      }
-    } else {
-      if (state.type === 'work' && tickSoundRef.current) {
+    if (state.isRunning) {
+      // Pause the timer and audio
+      if (tickSoundRef.current && !tickSoundRef.current.paused && !isAudioFinished.current) {
         tickSoundRef.current.pause();
-      } else if (state.type === 'break' && pauseStartSoundRef.current) {
+      }
+      if (pauseStartSoundRef.current && !pauseStartSoundRef.current.paused && !isAudioFinished.current) {
         pauseStartSoundRef.current.pause();
       }
+      setState(prev => ({ ...prev, isRunning: false, isPaused: true }));
+    } else {
+      // Resume or start the timer
+      if (!hasPlayedStartSound.current) {
+        if (state.type === 'work' && tickSoundRef.current) {
+          tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+          hasPlayedStartSound.current = true;
+          isAudioFinished.current = false; // Reset audio finished flag
+        } else if (state.type === 'break' && pauseStartSoundRef.current) {
+          pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+          hasPlayedStartSound.current = true;
+          isAudioFinished.current = false; // Reset audio finished flag
+        }
+      } else if (!isAudioFinished.current) {
+        // Resume audio from where it was paused
+        if (state.type === 'work' && tickSoundRef.current) {
+          tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+        } else if (state.type === 'break' && pauseStartSoundRef.current) {
+          pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+        }
+      }
+      setState(prev => ({ ...prev, isRunning: true, isPaused: false }));
     }
-
-    setState(prev => ({ ...prev, isRunning: !prev.isRunning, isPaused: false }));
   };
 
   const resetTimer = (type: 'work' | 'break') => {
     const duration = type === 'work' ? workDuration : breakDuration;
+    hasPlayedStartSound.current = false; // Reset the audio flag on reset
+    isAudioFinished.current = false; // Reset audio finished flag
     setState({
       minutes: Math.floor(duration / 60),
       seconds: 0,
@@ -56,26 +100,41 @@ export default function Timer({
       type: type,
       isPaused: false
     });
+    // Stop any playing audio on reset
+    if (tickSoundRef.current) {
+      tickSoundRef.current.pause();
+      tickSoundRef.current.currentTime = 0;
+    }
+    if (pauseStartSoundRef.current) {
+      pauseStartSoundRef.current.pause();
+      pauseStartSoundRef.current.currentTime = 0;
+    }
   };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     let sessionCompleted = false;
-    let pauseEndTimeout: NodeJS.Timeout;
 
     if (state.isRunning) {
       interval = setInterval(() => {
         setState(prev => {
-          if (state.type === 'work' && prev.minutes === 0 && prev.seconds === 6 && !sessionCompleted && endSoundRef.current) {
-            endSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+          const totalSeconds = prev.minutes * 60 + prev.seconds;
+          
+          // Play end sound when 10 seconds remain
+          if (totalSeconds === 10 && !sessionCompleted) {
+            if (endSoundRef.current) {
+              endSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+            }
           }
 
-          if (prev.minutes === 0 && prev.seconds === 0 && !sessionCompleted) {
+          if (totalSeconds === 0 && !sessionCompleted) {
             sessionCompleted = true;
             const duration = prev.type === 'work' ? workDuration : breakDuration;
             onSessionComplete(duration, prev.type);
             const nextType = prev.type === 'work' ? 'break' : 'work';
             const nextDuration = nextType === 'work' ? workDuration : breakDuration;
+            hasPlayedStartSound.current = false; // Reset the audio flag when the session completes
+            isAudioFinished.current = false; // Reset audio finished flag
             return {
               minutes: Math.floor(nextDuration / 60),
               seconds: 0,
@@ -89,31 +148,18 @@ export default function Timer({
             return prev;
           }
 
-          const totalSeconds = prev.minutes * 60 + prev.seconds - 1;
+          const newTotalSeconds = totalSeconds - 1;
           return {
             ...prev,
-            minutes: Math.floor(totalSeconds / 60),
-            seconds: totalSeconds % 60
+            minutes: Math.floor(newTotalSeconds / 60),
+            seconds: newTotalSeconds % 60
           };
         });
       }, 1000);
     }
 
-    if (state.type === 'break' && state.isRunning) {
-      const totalPauseTime = state.minutes * 60 + state.seconds;
-      if (totalPauseTime > 10) {
-        pauseEndTimeout = setTimeout(() => {
-          if (pauseEndSoundRef.current) {
-            pauseEndSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
-          }
-        }, (totalPauseTime - 10) * 1000);
-      }
-    }
-
     return () => {
       clearInterval(interval);
-      clearTimeout(pauseEndTimeout);
-      sessionCompleted = false;
     };
   }, [state.isRunning, state.type, onSessionComplete, workDuration, breakDuration]);
 
