@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Play, Pause, RotateCcw, Coffee, Palette } from 'lucide-react';
+import { Play, Pause, RotateCcw, Coffee, Dumbbell, Palette } from 'lucide-react';
 import { TimerState } from '../types';
 import { getRandomGradient } from '../utils/gradients';
 
@@ -26,16 +26,25 @@ export default function Timer({
     seconds: 0,
     isRunning: false,
     type: 'work',
+    isPaused: false
   });
 
   const toggleTimer = () => {
-    if (!state.isRunning && tickSoundRef.current) {
-      tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+    if (!state.isRunning) {
+      if (state.type === 'work' && tickSoundRef.current) {
+        tickSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+      } else if (state.type === 'break' && pauseStartSoundRef.current) {
+        pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+      }
+    } else {
+      if (state.type === 'work' && tickSoundRef.current) {
+        tickSoundRef.current.pause();
+      } else if (state.type === 'break' && pauseStartSoundRef.current) {
+        pauseStartSoundRef.current.pause();
+      }
     }
-    if (state.isRunning && tickSoundRef.current) {
-      tickSoundRef.current.pause();
-    }
-    setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
+
+    setState(prev => ({ ...prev, isRunning: !prev.isRunning, isPaused: false }));
   };
 
   const resetTimer = (type: 'work' | 'break') => {
@@ -45,6 +54,7 @@ export default function Timer({
       seconds: 0,
       isRunning: false,
       type: type,
+      isPaused: false
     });
   };
 
@@ -56,7 +66,7 @@ export default function Timer({
     if (state.isRunning) {
       interval = setInterval(() => {
         setState(prev => {
-          if (prev.minutes === 0 && prev.seconds === 6 && !sessionCompleted && endSoundRef.current) {
+          if (state.type === 'work' && prev.minutes === 0 && prev.seconds === 6 && !sessionCompleted && endSoundRef.current) {
             endSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
           }
 
@@ -66,14 +76,12 @@ export default function Timer({
             onSessionComplete(duration, prev.type);
             const nextType = prev.type === 'work' ? 'break' : 'work';
             const nextDuration = nextType === 'work' ? workDuration : breakDuration;
-            if (nextType === 'break' && pauseStartSoundRef.current) {
-              pauseStartSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
-            }
             return {
               minutes: Math.floor(nextDuration / 60),
               seconds: 0,
               isRunning: false,
               type: nextType,
+              isPaused: false
             };
           }
 
@@ -85,13 +93,13 @@ export default function Timer({
           return {
             ...prev,
             minutes: Math.floor(totalSeconds / 60),
-            seconds: totalSeconds % 60,
+            seconds: totalSeconds % 60
           };
         });
       }, 1000);
     }
 
-    if (state.type === 'break') {
+    if (state.type === 'break' && state.isRunning) {
       const totalPauseTime = state.minutes * 60 + state.seconds;
       if (totalPauseTime > 10) {
         pauseEndTimeout = setTimeout(() => {
@@ -147,7 +155,7 @@ export default function Timer({
             className="bg-white/20 hover:bg-white/30 p-4 rounded-full transition-all"
             title={state.type === 'work' ? "Switch to break" : "Switch to work"}
           >
-            <Coffee size={24} />
+            {state.type === 'work' ? <Dumbbell size={24} /> : <Coffee size={24} />}
           </button>
 
           <button
